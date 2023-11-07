@@ -15,8 +15,26 @@ func IzeSlice[S ~string](in []S) []string {
 	return res
 }
 
+type Option func(*settings)
+
+func Debug() Option {
+	return func(s *settings) { s.debug = true }
+}
+
+type settings struct {
+	debug bool
+}
+
+func IzeDebug[S ~string](in S, opts ...Option) string {
+	return Ize(in, append(opts, Debug())...)
+}
+
 // codenam.Ize will take a string and give it a consistent memorable name.
-func Ize[S ~string](in S) string {
+func Ize[S ~string](in S, opts ...Option) string {
+	settings := &settings{}
+	for _, opt := range opts {
+		opt(settings)
+	}
 	numAdjectives := 1
 	// Prepare codename word lists and calculate size of codename space
 	particles := [][]string{nouns}
@@ -41,16 +59,20 @@ func Ize[S ~string](in S) string {
 	objHash = objHash.Mul(objHash, primeFactor)
 	index := objHash.Mod(objHash, big.NewInt(int64(totalWords)))
 
-	res := []string{}
+	rs := []string{}
 	for _, particle := range particles { // names, adjectives...
 		lenParticle := big.NewInt(int64(len(particle)))
 		pos := new(big.Int).Mod(index, lenParticle).Int64()
-		res = append(res, particle[pos])
+		rs = append(rs, particle[pos])
 		index = index.Div(index, lenParticle)
 	}
 
-	slices.Reverse(res)
-	return strings.Join(res, "-")
+	slices.Reverse(rs)
+	r := strings.Join(rs, "-")
+	if settings.debug {
+		r += "(" + string(in) + ")"
+	}
+	return r
 }
 
 var adjectives = []string{
